@@ -16,7 +16,7 @@ object CgiServerBuilder {
     def getOrRaise[F[_]: Sync](key: String): F[String] =
       map.get(key).map(_.pure[F]).getOrElse(Sync[F].raiseError(new EnvironmentVariableNotFound(key)))
     def getHeaders: Headers                            = Headers(map.toList.filter(_._1.startsWith("HTTP_")).map { case (header, value) =>
-      Header.Raw(header.ci, value)
+      Header.Raw(header.stripSuffix("HTTP_").ci, value)
     })
   }
 
