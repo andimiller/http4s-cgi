@@ -70,11 +70,10 @@ lazy val calculator = (project in file("examples/calculator"))
   .settings(
     name := "calculator",
     libraryDependencies ++= List(
-      "org.http4s" %%% "http4s-circe" % "1.0.0-M37",
-      "org.http4s" %%% "http4s-dsl"   % "1.0.0-M37",
-      "io.circe"   %%% "circe-generic" % "0.14.3",
+      "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
+      "io.circe"   %%% "circe-generic" % "0.14.3"
     )
   )
-
 
 lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator)

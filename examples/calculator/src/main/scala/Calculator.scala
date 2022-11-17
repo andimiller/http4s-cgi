@@ -20,7 +20,7 @@ object Calculator extends CgiApp {
       req.as[Req].flatMap {
         case Req(l, r, "+") => Ok((l + r).asJson)
         case Req(l, r, "*") => Ok((l * r).asJson)
-        case Req(_, _, op) => BadRequest(s"Unknown operator $op")
+        case Req(_, _, op)  => BadRequest(s"Unknown operator $op")
       }
     }
     .orNotFound
