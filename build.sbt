@@ -7,7 +7,7 @@ ThisBuild / scalaVersion := "2.13.10"
 lazy val commonSettings = List(
   Compile / nativeConfig ~= {
     _.withMode(Mode.releaseFull)
-      .withLTO(LTO.full)
+      .withLTO(LTO.default)
       .withGC(GC.default)
   },
   Test / nativeConfig ~= {
@@ -63,4 +63,18 @@ lazy val streamed = (project in file("examples/streamed"))
     )
   )
 
-lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin)
+lazy val calculator = (project in file("examples/calculator"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "calculator",
+    libraryDependencies ++= List(
+      "org.http4s" %%% "http4s-circe" % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"   % "1.0.0-M37",
+      "io.circe"   %%% "circe-generic" % "0.14.3",
+    )
+  )
+
+
+lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator)
