@@ -6,7 +6,7 @@ ThisBuild / scalaVersion := "2.13.10"
 
 lazy val commonSettings = List(
   Compile / nativeConfig ~= {
-    _.withMode(Mode.releaseFull)
+    _.withMode(Mode.default)
       .withLTO(LTO.default)
       .withGC(GC.default)
   },
