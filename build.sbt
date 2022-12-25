@@ -14,8 +14,8 @@ lazy val commonSettings = List(
     _.withMode(Mode.debug)
       .withLTO(LTO.default)
       .withGC(GC.default)
-  }
-  // nativeLinkingOptions += "-static",
+  },
+  nativeLinkingOptions += "-static"
 )
 
 lazy val root = (project in file("."))
