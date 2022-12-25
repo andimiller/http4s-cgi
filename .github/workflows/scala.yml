@@ -16,9 +16,7 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up JDK 11
@@ -29,14 +27,30 @@ jobs:
         cache: 'sbt'
     - name: Run tests
       run: sbt -mem 4096 test
-    - name: build examples
-      run: sbt -mem 4096 "project hello; nativeLink"
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: examples/hello/target/scala-2.13/hello
-        asset_name: mything
-        tag: ${{ github.ref }}
-        overwrite: true
-        body: "Example CGI-BIN binaries created from the examples folders"
+  examples:
+    runs-on: ubuntu-latest
+    needs: [build]
+    strategy:
+      matrix:
+        module: [hello,calculator,hitcounter,httpbin,streamed]
+    steps:
+    - name: build ${{ matrix.module }}
+      run: sbt -mem 4096 "project ${{ matrix.module }}; nativeLink; run"
+    - name: upload target
+      uses: actions/upload-artifact@v2
+      with: 
+        name: ${{ matrix.module }}
+        path: examples${{ matrix.module }}/target
+
+#  release:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: Upload binaries to release
+#      uses: svenstaro/upload-release-action@v2
+#      with:
+#        repo_token: ${{ secrets.GITHUB_TOKEN }}
+#        file: examples/hello/target/scala-2.13/hello
+#        asset_name: mything
+#        tag: ${{ github.ref }}
+#        overwrite: true
+#        body: "Example CGI-BIN binaries created from the examples folders"
