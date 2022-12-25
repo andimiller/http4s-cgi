@@ -42,7 +42,7 @@ jobs:
         distribution: 'temurin'
         cache: 'sbt'    
     - name: build ${{ matrix.module }}
-      run: sbt -mem 4096 "project ${{ matrix.module }}; nativeLink; run"
+      run: sbt -mem 4096 "project ${{ matrix.module }}; nativeLink"
     - name: upload target
       uses: actions/upload-artifact@v2
       with: 
