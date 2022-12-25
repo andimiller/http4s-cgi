@@ -5,7 +5,7 @@ import org.http4s.{HttpApp, HttpRoutes}
 
 object HelloWorld extends CgiApp {
   override val routes: HttpApp[IO] = HttpRoutes
-    .of[IO] { case GET -> Root / "hello" =>
+    .of[IO] { case GET -> _ =>
       Ok("Hello world")
     }
     .orNotFound

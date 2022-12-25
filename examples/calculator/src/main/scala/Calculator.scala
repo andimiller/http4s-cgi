@@ -16,7 +16,7 @@ object Req {
 object Calculator extends CgiApp {
 
   override val routes: HttpApp[IO] = HttpRoutes
-    .of[IO] { case req @ POST -> Root / "calculator" =>
+    .of[IO] { case req @ POST -> _ =>
       req.as[Req].flatMap {
         case Req(l, r, "+") => Ok((l + r).asJson)
         case Req(l, r, "*") => Ok((l * r).asJson)
