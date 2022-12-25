@@ -6,7 +6,7 @@ ThisBuild / scalaVersion := "2.13.10"
 
 lazy val commonSettings = List(
   Compile / nativeConfig ~= {
-    _.withMode(Mode.releaseFull)
+    _.withMode(Mode.default)
       .withLTO(LTO.default)
       .withGC(GC.default)
   },
@@ -73,6 +73,20 @@ lazy val calculator = (project in file("examples/calculator"))
       "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
       "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
       "io.circe"   %%% "circe-generic" % "0.14.3"
+    )
+  )
+
+lazy val hitcounter = (project in file("examples/hitcounter"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "calculator",
+    libraryDependencies ++= List(
+      "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
+      "io.circe"   %%% "circe-generic" % "0.14.3",
+      "co.fs2"     %%% "fs2-io"        % "3.4.0"
     )
   )
 
