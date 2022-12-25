@@ -32,7 +32,7 @@ jobs:
     needs: [build]
     strategy:
       matrix:
-        module: [hello,calculator,hitcounter,httpbin,streamed]
+        module: [hello,calculator,hitcounter,httpbin,streamed,websocket]
     steps:
     - uses: actions/checkout@v3
     - name: Set up JDK 11
