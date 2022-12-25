@@ -81,7 +81,7 @@ lazy val hitcounter = (project in file("examples/hitcounter"))
   .dependsOn(root)
   .settings(commonSettings: _*)
   .settings(
-    name := "calculator",
+    name := "hitcounter",
     libraryDependencies ++= List(
       "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
       "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
