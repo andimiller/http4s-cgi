@@ -13,7 +13,7 @@ import scala.concurrent.duration.DurationInt
 object Websocket extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
-      .of[IO] { case GET -> _ =>
+      .of[IO] { case _ =>
         fs2.concurrent.Topic[IO, String].flatMap { replyTopic =>
           val send: Stream[IO, WebSocketFrame]        =
             Stream
