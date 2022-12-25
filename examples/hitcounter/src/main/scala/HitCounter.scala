@@ -20,7 +20,6 @@ object OpenAndLockFile {
       Resource.make(channel.lock)(channel.unlock).as(channel)
     }
   }
-
 }
 
 object Counter {

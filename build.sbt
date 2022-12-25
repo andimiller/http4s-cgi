@@ -90,4 +90,16 @@ lazy val hitcounter = (project in file("examples/hitcounter"))
     )
   )
 
-lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator)
+lazy val websocket = (project in file("examples/websocket"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "websocket",
+    libraryDependencies ++= List(
+      "org.http4s" %%% "http4s-circe" % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"   % "1.0.0-M37"
+    )
+  )
+
+lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator, hitcounter, websocket)
