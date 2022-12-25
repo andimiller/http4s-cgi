@@ -47,7 +47,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with: 
         name: ${{ matrix.module }}
-        path: examples${{ matrix.module }}/target
+        path: examples/${{ matrix.module }}/target
 
 #  release:
 #    runs-on: ubuntu-latest
