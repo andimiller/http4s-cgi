@@ -25,8 +25,9 @@ object CgiServerBuilder {
     method       <- env.getOrRaise[F]("REQUEST_METHOD").flatMap(s => Sync[F].fromEither(Method.fromString(s)))
     queryString   = env.get("QUERY_STRING").map(s => "?" + s)
     uri          <- env.getOrRaise[F]("SCRIPT_NAME").flatMap(s => Sync[F].fromEither(Uri.fromString(s + queryString.getOrElse(""))))
-    contentType  <- OptionT.fromOption[F](env.get("CONTENT_TYPE")).semiflatMap(s => Sync[F].fromEither(`Content-Type`.parse(s))).value
-    contentLength = env.get("CONTENT_LENGTH").flatMap(_.toLongOption)
+    contentType  <-
+      OptionT.fromOption[F](env.get("CONTENT_TYPE").filter(_.nonEmpty)).semiflatMap(s => Sync[F].fromEither(`Content-Type`.parse(s))).value
+    contentLength = env.get("CONTENT_LENGTH").filter(_.nonEmpty).flatMap(_.toLongOption)
     headers       = env.getHeaders ++ Headers(contentType.toList)
     request       = Request[F](
                       method = method,
