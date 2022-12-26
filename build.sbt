@@ -15,7 +15,11 @@ lazy val commonSettings = List(
       .withLTO(LTO.default)
       .withGC(GC.default)
   },
-  nativeLinkingOptions += "-static"
+  nativeLinkingOptions += "-static",
+  libraryDependencies ++= List(
+    "org.typelevel" %%% "munit-cats-effect" % "2.0.0-M3" % Test
+  ),
+  testFrameworks += new TestFramework("munit.Framework")
 )
 
 lazy val root = (project in file("."))
@@ -109,9 +113,9 @@ lazy val `websocket-chat` = (project in file("examples/websocket-chat"))
   .settings(
     name := "websocket-chat",
     libraryDependencies ++= List(
-      "org.http4s"       %%% "http4s-circe" % "1.0.0-M37",
-      "org.http4s"       %%% "http4s-dsl"   % "1.0.0-M37",
-      "org.scala-native" %%% "posixlib"     % "0.4.9"
+      "org.http4s"                %%% "http4s-circe" % "1.0.0-M37",
+      "org.http4s"                %%% "http4s-dsl"   % "1.0.0-M37",
+      "com.github.david-bouyssie" %%% "sqlite4s"     % "0.4.1"
     )
   )
 

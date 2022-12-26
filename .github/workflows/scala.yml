@@ -40,9 +40,11 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
-        cache: 'sbt'    
+        cache: 'sbt'
+    - name: Install sqlite3-dev
+      run: apt-get install libsqlite3-dev
     - name: build ${{ matrix.module }}
-      run: sbt -mem 4096 "project ${{ matrix.module }}; nativeLink"
+      run: sbt -mem 4096 "project ${{ matrix.module }}; test; nativeLink"
     - name: upload target
       uses: actions/upload-artifact@v2
       with: 
