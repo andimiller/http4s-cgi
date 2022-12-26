@@ -61,7 +61,8 @@ object WebsocketdServerBuilder {
                               .flattenOption
                               .evalTap(f => Console[F].println(s"OUTPUT: $f"))
                               .map(escapeNewlines)
-                              .through(fs2.io.stdoutLines[F, String]())
+                              .through(fs2.text.utf8.encode[F])
+                              .through(fs2.io.stdout[F])
                             Console[F].println("separate mode") *> in.concurrently(out).onFinalize(onClose).compile.drain
                           case WebSocketCombinedPipe(receiveSend, onClose)   =>
                             Console[F].println("combined mode") *> fs2.io
