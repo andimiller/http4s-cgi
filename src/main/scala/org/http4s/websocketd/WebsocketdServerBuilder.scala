@@ -42,7 +42,7 @@ object WebsocketdServerBuilder {
                         ctx.webSocket match {
                           case WebSocketSeparatePipe(send, receive, onClose) =>
                             // input
-                            val in: fs2.Stream[F, Unit]     =
+                            val in: fs2.Stream[F, Unit]  =
                               fs2.io
                                 .stdinUtf8[F](1024)
                                 .map(unescapeNewlines)
@@ -50,7 +50,7 @@ object WebsocketdServerBuilder {
                                 .map(WebSocketFrame.Text(_))
                                 .through(receive)
                             // output
-                            val out: fs2.Stream[F, Nothing] = send
+                            val out: fs2.Stream[F, Unit] = send
                               .map {
                                 case text: WebSocketFrame.Text => Some(text.str)
                                 case _                         => None
