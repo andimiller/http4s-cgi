@@ -16,11 +16,10 @@ import fs2.io.file.Files
 import fs2.io.file.Watcher.Event
 import fs2.io.net.Socket
 
-import scalanative.unsafe.fromCString
+import scalanative.unsafe.{CFuncPtr5, CInt, CQuote, CString, Ptr, Zone, fromCString, sizeof}
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
-import scala.scalanative.unsafe.{CFuncPtr5, CInt, CQuote, CString, Ptr}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -49,17 +48,19 @@ object Loader   {
   implicit val loadInt: Loader[Unit] = { _ => () }
 }
 
-object DbConn                                                                                                      {
+object DbConn                                                                  {
   val callbackStr: CString = c"callback"
 }
-class DbConn[F[_]: Sync](private val conn: SQLiteConnection, ref: Ref[F, Int])(implicit dispatcher: Dispatcher[F]) {
+class DbConn[F[_]: Sync](private val conn: SQLiteConnection)(implicit z: Zone) {
 
-  def registerCallback: F[Unit] = Sync[F].delay {
+  def registerCallback: F[Ptr[CInt]] = Sync[F].delay {
+    val counter: Ptr[CInt] = z.alloc(sizeof[CInt]).asInstanceOf[Ptr[CInt]]
+    !counter = 0
     println("registering callback")
+
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
       println("callback triggered")
-      // println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
-      dispatcher.unsafeRunAndForget(ref.update(_ + 1))
+      !counter = !counter + 1
       println(s"inc'd")
     }
     sqlite3_update_hook(
@@ -68,7 +69,8 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection, ref: Ref[F, Int])(i
       DbConn.callbackStr
     )
     println("callback registered")
-  }.void
+    counter
+  }
 
   /** Execute an SQL statement, using the Binder to bind inputs, and the Loader to bind outputs */
   def exec[I: Binder, O: Loader](
@@ -85,14 +87,29 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection, ref: Ref[F, Int])(i
 }
 
 object DB {
-  def connect[F[_]: Sync: Dispatcher](file: File, ref: Ref[F, Int], write: Boolean = false): Resource[F, DbConn[F]] =
-    Resource
-      .make(Sync[F].delay { new SQLiteConnection((file)) }) { c => Sync[F].delay { c.dispose() } }
-      .evalTap { conn =>
-        if (write) Sync[F].delay { conn.open(allowCreate = true) }
-        else Sync[F].delay { conn.openReadonly() }
-      }
-      .map(c => new DbConn(c, ref))
+  def connect[F[_]: Sync: Dispatcher](file: File, write: Boolean = false): Resource[F, DbConn[F]] = {
+    Resource.make(Sync[F].delay { Zone.open() }) { z => Sync[F].delay { z.close() } }.flatMap { implicit zone =>
+      Resource
+        .make(Sync[F].delay {
+          new SQLiteConnection((file))
+        }) { c =>
+          Sync[F].delay {
+            c.dispose()
+          }
+        }
+        .evalTap { conn =>
+          if (write) Sync[F].delay {
+            conn.open(allowCreate = true)
+          }
+          else
+            Sync[F].delay {
+              conn.openReadonly()
+            }
+        }
+        .map(c => new DbConn(c))
+    }
+
+  }
 }
 
 case class ChatLog(time: Instant, name: String, message: String)

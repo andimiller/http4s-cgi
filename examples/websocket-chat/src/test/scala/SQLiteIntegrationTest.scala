@@ -19,18 +19,18 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
 
   test("use an sqlite database") {
     Dispatcher[IO].use { implicit dispatcher =>
-      Ref.of[IO, Int](0).flatMap { ref =>
-        DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), ref, write = true)
-          .use { conn =>
-            conn.registerCallback *>
-              conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
+      DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), write = true)
+        .use { conn =>
+          conn.registerCallback.flatMap { counter =>
+            conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
               conn.exec[Cat, Unit]("insert into cats values (?, ?)")(Cat("bob", 12)) *>
-              conn.exec[Unit, Cat]("select * from cats")() <* ref.get.flatMap { i => IO.println(s"change count: $i") }
+              conn.exec[Unit, Cat]("select * from cats")() <* IO.println(s"change count: ${!counter}")
           }
-          .assertEquals(
-            Vector(Cat("bob", 12))
-          )
-      }
+
+        }
+        .assertEquals(
+          Vector(Cat("bob", 12))
+        )
     }
   }
 
