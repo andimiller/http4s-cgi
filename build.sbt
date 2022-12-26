@@ -113,10 +113,14 @@ lazy val `websocket-chat` = (project in file("examples/websocket-chat"))
   .settings(
     name := "websocket-chat",
     libraryDependencies ++= List(
-      "org.http4s"                %%% "http4s-circe" % "1.0.0-M37",
-      "org.http4s"                %%% "http4s-dsl"   % "1.0.0-M37",
-      "com.github.david-bouyssie" %%% "sqlite4s"     % "0.4.1"
-    )
+      "org.http4s"        %%% "http4s-circe"  % "1.0.0-M37",
+      "org.http4s"        %%% "http4s-dsl"    % "1.0.0-M37",
+      "io.circe"          %%% "circe-generic" % "0.14.3",
+      "io.circe"          %%% "circe-parser"  % "0.14.3",
+      "io.chrisdavenport" %%% "rediculous"    % "0.4.0-15-6f5aacf-SNAPSHOT"
+    ),
+    resolvers +=
+      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots" // for the snapshot of rediculous
   )
 
 lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator, hitcounter, websocket, `websocket-chat`)
