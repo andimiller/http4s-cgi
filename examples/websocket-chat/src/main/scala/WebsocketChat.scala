@@ -28,14 +28,14 @@ object ChatLog {
   implicit val codec: Codec[ChatLog] = deriveCodec
 }
 
-/** This is an example websocket server which lets people join and chat to each other via a sqlite db
+/** This is an example websocket server which lets people join and chat to each other via redis
   */
 object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
         Topic[IO, String].flatMap { topic =>
-          ws.build { _ =>
+          ws.build(
             fs2.Stream
               .resource(
                 RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
@@ -51,9 +51,19 @@ object WebsocketChat extends WebsocketdApp {
                     )
                     .as("Connected")
                 ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-
-              }
-          }
+              },
+            input =>
+              fs2.Stream
+                .resource(
+                  RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
+                )
+                .flatMap { pubsub =>
+                  input
+                    .collect { case WebSocketFrame.Text(s, _) => s }
+                    .evalTap(s => pubsub.publish("chat", ChatLog(Instant.now(), name, s).asJson.noSpaces))
+                    .void
+                }
+          )
         }
 
       }
