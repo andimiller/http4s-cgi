@@ -48,7 +48,7 @@ object Loader                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  def registerCallback(callback: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+  def registerCallback(callback: (String, String, String, Long) => Unit)(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
