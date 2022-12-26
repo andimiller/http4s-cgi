@@ -1,6 +1,8 @@
 import cats.effect.kernel.Resource
 import cats.effect._
 import cats.implicits._
+import com.github.sqlite4s.bindings.sqlite.SQLITE_CONSTANT.{SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE}
+import com.github.sqlite4s.bindings.sqlite.sqlite3_update_hook
 import com.github.sqlite4s.{SQLParts, SQLiteConnection, SQLiteStatement}
 import net.andmiller.http4s.cgi.WebsocketdApp
 import org.http4s.dsl.io._
@@ -14,6 +16,8 @@ import fs2.io.file.Watcher.Event
 import fs2.io.net.Socket
 
 import java.io.File
+import java.time.Instant
+import scala.scalanative.unsafe.{CFuncPtr5, Ptr}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -43,6 +47,27 @@ object Loader                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
+  def registerCallback(callback: (String, String, String, Long) => Unit): F[Unit] = Sync[F].delay {
+    sqlite3_update_hook(
+      conn.connectionHandle().asPtr(),
+      CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
+        callback(
+          op match {
+            case i if i == SQLITE_INSERT => "INSERT"
+            case i if i == SQLITE_UPDATE => "UPDATE"
+            case i if i == SQLITE_DELETE => "DELETE"
+            case _                       => "UNKNOWN"
+          },
+          db.toString(),
+          table.toString(),
+          row.toLong
+        )
+        ()
+      },
+      null.asInstanceOf[Ptr[Byte]]
+    )
+  }.void
+
   /** Execute an SQL statement, using the Binder to bind inputs, and the Loader to bind outputs */
   def exec[I: Binder, O: Loader](
       sql: String
@@ -68,13 +93,36 @@ object DB {
       .map(new DbConn(_))
 }
 
+case class ChatLog(time: Instant, name: String, message: String)
+object ChatLog {
+  implicit val loader: Loader[ChatLog] = { s =>
+    ChatLog(Instant.parse(s.columnString(0)), s.columnString(1), s.columnString(2))
+  }
+  implicit val binder: Binder[ChatLog] = { case (s, cl) =>
+    s.bind(1, cl.time.toString()).bind(2, cl.name).bind(3, cl.message)
+  }
+}
+
+object ChatLogDb {
+  def provision[F[_]: Sync](conn: DbConn[F]): F[Unit] =
+    conn.exec[Unit, Unit]("create table if not exists chat ( text time, text name, text message )")().void
+
+  def readBacklog[F[_]: Sync](conn: DbConn[F]): F[Vector[ChatLog]] =
+    conn.exec[Unit, ChatLog]("select * from chat order by time desc limit 5")()
+
+  def send[F[_]: Sync](conn: DbConn[F])(log: ChatLog): F[Unit] =
+    conn.exec[ChatLog, Unit]("insert into chat values (?, ?, ?)")(log).void
+}
+
 /** This is an example websocket server which lets people join and chat to each other via a sqlite db
   */
 object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
-        ???
+        val dbFile = new File("./chat.db")
+        DB.connect[IO](dbFile, write = true).use(ChatLogDb.provision) *>
+          DB.connect[IO](dbFile, write = false).use { conn => ??? }
       }
       .orNotFound
 }
