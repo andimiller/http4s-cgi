@@ -1,5 +1,6 @@
 import cats.effect.kernel.Resource
 import cats.effect._
+import cats.effect.std.Dispatcher
 import cats.implicits._
 import com.github.sqlite4s.bindings.sqlite.SQLITE_CONSTANT.{SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE}
 import com.github.sqlite4s.bindings.sqlite.sqlite3_update_hook
@@ -47,22 +48,23 @@ object Loader                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  def registerCallback(callback: (String, String, String, Long) => Unit): F[Unit] = Sync[F].delay {
+  def registerCallback(callback: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
-        callback(
-          op match {
-            case i if i == SQLITE_INSERT => "INSERT"
-            case i if i == SQLITE_UPDATE => "UPDATE"
-            case i if i == SQLITE_DELETE => "DELETE"
-            case _                       => "UNKNOWN"
-          },
-          db.toString(),
-          table.toString(),
-          row.toLong
+        dispatcher.unsafeRunAndForget(
+          callback(
+            op match {
+              case i if i == SQLITE_INSERT => "INSERT"
+              case i if i == SQLITE_UPDATE => "UPDATE"
+              case i if i == SQLITE_DELETE => "DELETE"
+              case _                       => "UNKNOWN"
+            },
+            db.toString(),
+            table.toString(),
+            row.toLong
+          )
         )
-        ()
       },
       null.asInstanceOf[Ptr[Byte]]
     )
@@ -120,9 +122,13 @@ object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
+        ???
+      /*
         val dbFile = new File("./chat.db")
         DB.connect[IO](dbFile, write = true).use(ChatLogDb.provision) *>
           DB.connect[IO](dbFile, write = false).use { conn => ??? }
+
+       */
       }
       .orNotFound
 }
