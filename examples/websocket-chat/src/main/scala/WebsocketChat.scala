@@ -16,7 +16,7 @@ import fs2.io.net.Socket
 import java.io.File
 
 object Name {
-  def unapply(req: Request[_]): Option[String] =
+  def unapply[F[_]](req: Request[F]): Option[String] =
     req.uri.query.params.keys
       .find(_.toLowerCase == "name")
       .flatMap(req.uri.query.params.get)
@@ -42,6 +42,8 @@ object Loader                                                {
   implicit val loadInt: Loader[Unit] = { _ => () }
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
+
+  /** Execute an SQL statement, using the Binding to bind inputs, and the Loader to bind outputs */
   def exec[I: Binding, O: Loader](
       sql: String
   )(i: I): F[Vector[O]] =
