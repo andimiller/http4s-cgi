@@ -48,17 +48,22 @@ object Loader   {
 }
 
 object DbConn                                                {
-  val callbackStr: CString                                                                     = c"callback"
-  def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit =
-    println("beep")
+  val callbackStr: CString = c"callback"
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  def registerCallback(callback: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+  def registerCallback(cb: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     println("registering callback")
+    def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
+      println(s"boop: ${op.toInt}, ${db.toString()}, ${table.toString()}, ${row.toLong}")
+      dispatcher.unsafeRunAndForget(
+        cb("dunno", db.toString(), table.toString(), row.toLong)
+      )
+    }
+
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
-      DbConn.callback(_, _, _, _, _),
+      callback(_, _, _, _, _),
       DbConn.callbackStr
     )
     println("callback registered")
