@@ -57,7 +57,7 @@ object WebsocketdServerBuilder {
                               }
                               .flattenOption
                               .map(escapeNewlines)
-                              .evalMap(Console[F].println(_))
+                              .evalMap(s => Console[F].println(s))
                             Console[F].println("separate mode") *> in.concurrently(out).onFinalize(onClose).compile.drain
                           case WebSocketCombinedPipe(receiveSend, onClose)   =>
                             fs2.io
@@ -73,7 +73,7 @@ object WebsocketdServerBuilder {
                               }
                               .evalTap(f => Console[F].println(s"outputting frame: $f"))
                               .map(escapeNewlines)
-                              .evalMap(Console[F].println(_))
+                              .evalMap(s => Console[F].println(s))
                               .onFinalize(onClose)
                               .compile
                               .drain
