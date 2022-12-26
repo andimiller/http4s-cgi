@@ -18,7 +18,7 @@ import fs2.io.net.Socket
 
 import java.io.File
 import java.time.Instant
-import scala.scalanative.unsafe.{CFuncPtr5, Ptr}
+import scala.scalanative.unsafe.{CFuncPtr5, CQuote, Ptr}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -48,23 +48,25 @@ object Loader                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  def registerCallback(callback: (String, String, String, Long) => Unit)(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+  def registerCallback(callback: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
-        callback(
-          op match {
-            case i if i == SQLITE_INSERT => "INSERT"
-            case i if i == SQLITE_UPDATE => "UPDATE"
-            case i if i == SQLITE_DELETE => "DELETE"
-            case _                       => "UNKNOWN"
-          },
-          db.toString(),
-          table.toString(),
-          row.toLong
+        dispatcher.unsafeRunAndForget(
+          callback(
+            op match {
+              case i if i == SQLITE_INSERT => "INSERT"
+              case i if i == SQLITE_UPDATE => "UPDATE"
+              case i if i == SQLITE_DELETE => "DELETE"
+              case _                       => "UNKNOWN"
+            },
+            db.toString(),
+            table.toString(),
+            row.toLong
+          )
         )
       },
-      null.asInstanceOf[Ptr[Byte]]
+      c"callback"
     )
   }.void
 
