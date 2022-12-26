@@ -57,22 +57,23 @@ object WebsocketdServerBuilder {
                               }
                               .flattenOption
                               .map(escapeNewlines)
-                              .through(fs2.text.utf8.encode[F])
-                              .through(fs2.io.stdout[F])
+                              .evalMap(Console[F].println(_))
                             Console[F].println("separate mode") *> in.concurrently(out).onFinalize(onClose).compile.drain
                           case WebSocketCombinedPipe(receiveSend, onClose)   =>
-                            Console[F].println("combined mode") *> fs2.io
+                            fs2.io
                               .stdinUtf8[F](1024)
                               .map(unescapeNewlines)
                               .through(fs2.text.lines[F])
+                              .evalTap(l => Console[F].println(s"got input line: $l"))
                               .map(WebSocketFrame.Text(_))
                               .through(receiveSend)
+                              .evalTap(f => Console[F].println(s"got frame: $f"))
                               .collect { case text: WebSocketFrame.Text =>
                                 text.str
                               }
+                              .evalTap(f => Console[F].println(s"outputting frame: $f"))
                               .map(escapeNewlines)
-                              .through(fs2.text.utf8.encode[F])
-                              .through(fs2.io.stdout[F])
+                              .evalMap(Console[F].println(_))
                               .onFinalize(onClose)
                               .compile
                               .drain
