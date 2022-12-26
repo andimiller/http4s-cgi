@@ -52,18 +52,16 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
-        dispatcher.unsafeRunAndForget(
-          callback(
-            op match {
-              case i if i == SQLITE_INSERT => "INSERT"
-              case i if i == SQLITE_UPDATE => "UPDATE"
-              case i if i == SQLITE_DELETE => "DELETE"
-              case _                       => "UNKNOWN"
-            },
-            db.toString(),
-            table.toString(),
-            row.toLong
-          )
+        callback(
+          op match {
+            case i if i == SQLITE_INSERT => "INSERT"
+            case i if i == SQLITE_UPDATE => "UPDATE"
+            case i if i == SQLITE_DELETE => "DELETE"
+            case _                       => "UNKNOWN"
+          },
+          db.toString(),
+          table.toString(),
+          row.toLong
         )
       },
       null.asInstanceOf[Ptr[Byte]]
