@@ -15,6 +15,7 @@ import fs2.io.file.{Path => FS2Path}
 import fs2.io.file.Files
 import fs2.io.file.Watcher.Event
 import fs2.io.net.Socket
+import scalanative.unsafe.fromCString
 
 import java.io.File
 import java.time.Instant
@@ -55,9 +56,9 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
   def registerCallback(cb: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     println("registering callback")
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
-      println(s"boop: ${op.toInt}, ${db.toString()}, ${table.toString()}, ${row.toLong}")
+      println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
       dispatcher.unsafeRunAndForget(
-        cb("dunno", db.toString(), table.toString(), row.toLong)
+        cb("dunno", "dunno", "dunno", 123L)
       )
     }
 
