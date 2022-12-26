@@ -1,6 +1,7 @@
 import cats.effect.IO
 import cats.implicits._
 import cats.effect.implicits._
+import cats.effect.kernel.Ref
 import cats.effect.std.Dispatcher
 
 import java.io.File
@@ -18,17 +19,18 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
 
   test("use an sqlite database") {
     Dispatcher[IO].use { implicit dispatcher =>
-      val counter = new AtomicInteger(0)
-      DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), write = true)
-        .use { conn =>
-          conn.registerCallback(counter) *>
-            conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
-            conn.exec[Cat, Unit]("insert into cats values (?, ?)")(Cat("bob", 12)) *>
-            conn.exec[Unit, Cat]("select * from cats")() <* IO.println(s"change count: ${counter.get()}")
-        }
-        .assertEquals(
-          Vector(Cat("bob", 12))
-        )
+      Ref.of[IO, Int](0).flatMap { ref =>
+        DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), ref, write = true)
+          .use { conn =>
+            conn.registerCallback *>
+              conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
+              conn.exec[Cat, Unit]("insert into cats values (?, ?)")(Cat("bob", 12)) *>
+              conn.exec[Unit, Cat]("select * from cats")() <* ref.get.flatMap { i => IO.println(s"change count: $i") }
+          }
+          .assertEquals(
+            Vector(Cat("bob", 12))
+          )
+      }
     }
   }
 

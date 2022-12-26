@@ -49,18 +49,18 @@ object Loader   {
   implicit val loadInt: Loader[Unit] = { _ => () }
 }
 
-object DbConn                                                {
+object DbConn                                                                                                      {
   val callbackStr: CString = c"callback"
 }
-class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
+class DbConn[F[_]: Sync](private val conn: SQLiteConnection, ref: Ref[F, Int])(implicit dispatcher: Dispatcher[F]) {
 
-  def registerCallback(cb: AtomicInteger)(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+  def registerCallback: F[Unit] = Sync[F].delay {
     println("registering callback")
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
       println("callback triggered")
       // println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
-      val counter = cb.incrementAndGet()
-      println(s"counter: $counter")
+      dispatcher.unsafeRunAndForget(ref.update(_ + 1))
+      println(s"inc'd")
     }
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
@@ -85,14 +85,14 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 }
 
 object DB {
-  def connect[F[_]: Sync](file: File, write: Boolean = false): Resource[F, DbConn[F]] =
+  def connect[F[_]: Sync: Dispatcher](file: File, ref: Ref[F, Int], write: Boolean = false): Resource[F, DbConn[F]] =
     Resource
       .make(Sync[F].delay { new SQLiteConnection((file)) }) { c => Sync[F].delay { c.dispose() } }
       .evalTap { conn =>
         if (write) Sync[F].delay { conn.open(allowCreate = true) }
         else Sync[F].delay { conn.openReadonly() }
       }
-      .map(new DbConn(_))
+      .map(c => new DbConn(c, ref))
 }
 
 case class ChatLog(time: Instant, name: String, message: String)
