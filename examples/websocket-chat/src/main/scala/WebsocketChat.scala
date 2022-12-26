@@ -58,7 +58,7 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
       println("callback triggered")
       println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
-      // cb(fromCString(table))
+      cb(fromCString(table))
     }
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
