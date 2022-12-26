@@ -102,4 +102,17 @@ lazy val websocket = (project in file("examples/websocket"))
     )
   )
 
-lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator, hitcounter, websocket)
+lazy val `websocket-chat` = (project in file("examples/websocket-chat"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "websocket-chat",
+    libraryDependencies ++= List(
+      "org.http4s"       %%% "http4s-circe" % "1.0.0-M37",
+      "org.http4s"       %%% "http4s-dsl"   % "1.0.0-M37",
+      "org.scala-native" %%% "posixlib"     % "0.4.9"
+    )
+  )
+
+lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator, hitcounter, websocket, `websocket-chat`)
