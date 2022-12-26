@@ -62,7 +62,7 @@ object DB {
     Resource
       .make(Sync[F].delay { new SQLiteConnection((file)) }) { c => Sync[F].delay { c.dispose() } }
       .evalTap { conn =>
-        if (write) Sync[F].delay { conn.open() }
+        if (write) Sync[F].delay { conn.open(allowCreate = true) }
         else Sync[F].delay { conn.openReadonly() }
       }
       .map(new DbConn(_))

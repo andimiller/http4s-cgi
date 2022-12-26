@@ -12,7 +12,7 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
   }
 
   test("use an sqlite database") {
-    DB.connect[IO](new File("/tmp/test.db"))
+    DB.connect[IO](new File("/tmp/test.db"), write = true)
       .use { conn =>
         conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
           conn.exec[Unit, Unit]("insert into cats values (\"bob\", 12)")() *>
