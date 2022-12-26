@@ -1,6 +1,5 @@
 package org.http4s.websocketd
 
-import cats.Monad
 import cats.data.OptionT
 import cats.effect.{Async, Concurrent, GenConcurrent, Sync, Unique}
 import cats.effect.std.Console
@@ -54,14 +53,16 @@ object WebsocketdServerBuilder {
                               .flattenOption
                               .map(escapeNewlines)
                               .through(fs2.io.stdoutLines[F, String]())
-                            in.concurrently(out).onFinalize(onClose).compile.drain
+                            Console[F].println("separate mode") *> in.concurrently(out).onFinalize(onClose).compile.drain
                           case WebSocketCombinedPipe(receiveSend, onClose)   =>
-                            fs2.io
+                            Console[F].println("combined mode") *> fs2.io
                               .stdinUtf8[F](1024)
                               .map(unescapeNewlines)
                               .through(fs2.text.lines[F])
+                              .evalTap(s => Console[F].println(s"INPUT: $s"))
                               .map(WebSocketFrame.Text(_))
                               .through(receiveSend)
+                              .evalTap(f => Console[F].println("OUTPUT: $f"))
                               .map {
                                 case text: WebSocketFrame.Text => Some(text.str)
                                 case _                         => None
