@@ -23,14 +23,14 @@ object Name {
       .filter(_.forall(_.isLetter))
 }
 
-trait Binding[T]                                             {
+trait Binder[T]                                              {
   def apply(s: SQLiteStatement, t: T): SQLiteStatement
 }
-object Binding                                               {
-  def apply[T: Binding]: Binding[T] = implicitly
+object Binder                                                {
+  def apply[T: Binder]: Binder[T] = implicitly
 
   // some instances
-  implicit val bindUnit: Binding[Unit] = { case (s, _) => s }
+  implicit val bindUnit: Binder[Unit] = { case (s, _) => s }
 }
 trait Loader[T]                                              {
   def apply(s: SQLiteStatement): T
@@ -43,8 +43,8 @@ object Loader                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  /** Execute an SQL statement, using the Binding to bind inputs, and the Loader to bind outputs */
-  def exec[I: Binding, O: Loader](
+  /** Execute an SQL statement, using the Binder to bind inputs, and the Loader to bind outputs */
+  def exec[I: Binder, O: Loader](
       sql: String
   )(i: I): F[Vector[O]] =
     Resource
@@ -52,7 +52,7 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
         conn.prepare(sql)
       }) { s => Sync[F].delay { s.dispose() } }
       .use { statement =>
-        Sync[F].delay { Binding[I].apply(statement, i) } *>
+        Sync[F].delay { Binder[I].apply(statement, i) } *>
           Sync[F].delay { Loader[O].apply(statement) }.whileM[Vector](Sync[F].delay { statement.step() })
       }
 }
