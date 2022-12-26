@@ -11,7 +11,7 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
     Cat(s.columnString(0), s.columnInt(1))
   }
   implicit val catBinder: Binder[Cat] = { case (s, c) =>
-    s.bind(0, c.name).bind(1, c.age)
+    s.bind(1, c.name).bind(2, c.age)
   }
 
   test("use an sqlite database") {
