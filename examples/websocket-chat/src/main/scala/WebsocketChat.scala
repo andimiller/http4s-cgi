@@ -58,6 +58,10 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
         dispatcher.unsafeRunAndForget(
+          Sync[F].delay {
+            println("beep")
+          }
+          /*
           callback(
             op match {
               case i if i == SQLITE_INSERT => "INSERT"
@@ -69,6 +73,8 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
             table.toString(),
             row.toLong
           )
+
+           */
         )
       },
       DbConn.callbackStr
