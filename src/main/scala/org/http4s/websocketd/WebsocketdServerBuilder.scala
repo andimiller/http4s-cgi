@@ -53,13 +53,13 @@ object WebsocketdServerBuilder {
                                 .through(receive)
                             // output
                             val out: fs2.Stream[F, Nothing] = send
-                              .evalTap(f => Console[F].println("OUTPUT FRAME: $f"))
+                              .evalTap(f => Console[F].println(s"OUTPUT FRAME: $f"))
                               .map {
                                 case text: WebSocketFrame.Text => Some(text.str)
                                 case _                         => None
                               }
                               .flattenOption
-                              .evalTap(f => Console[F].println("OUTPUT: $f"))
+                              .evalTap(f => Console[F].println(s"OUTPUT: $f"))
                               .map(escapeNewlines)
                               .through(fs2.io.stdoutLines[F, String]())
                             Console[F].println("separate mode") *> in.concurrently(out).onFinalize(onClose).compile.drain
