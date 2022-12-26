@@ -47,19 +47,15 @@ object WebsocketdServerBuilder {
                                 .stdinUtf8[F](1024)
                                 .map(unescapeNewlines)
                                 .through(fs2.text.lines[F])
-                                .evalTap(f => Console[F].println(s"INPUT LINE: $f"))
                                 .map(WebSocketFrame.Text(_))
-                                .evalTap(f => Console[F].println(s"INPUT FRAME: $f"))
                                 .through(receive)
                             // output
                             val out: fs2.Stream[F, Nothing] = send
-                              .evalTap(f => Console[F].println(s"OUTPUT FRAME: $f"))
                               .map {
                                 case text: WebSocketFrame.Text => Some(text.str)
                                 case _                         => None
                               }
                               .flattenOption
-                              .evalTap(f => Console[F].println(s"OUTPUT: $f"))
                               .map(escapeNewlines)
                               .through(fs2.text.utf8.encode[F])
                               .through(fs2.io.stdout[F])
@@ -69,19 +65,18 @@ object WebsocketdServerBuilder {
                               .stdinUtf8[F](1024)
                               .map(unescapeNewlines)
                               .through(fs2.text.lines[F])
-                              .evalTap(s => Console[F].println(s"INPUT: $s"))
                               .map(WebSocketFrame.Text(_))
                               .through(receiveSend)
-                              .evalTap(f => Console[F].println("OUTPUT: $f"))
-                              .map {
-                                case text: WebSocketFrame.Text => Some(text.str)
-                                case _                         => None
+                              .collect { case text: WebSocketFrame.Text =>
+                                text.str
                               }
-                              .flattenOption
                               .map(escapeNewlines)
-                              .through(fs2.io.stdoutLines[F, String]())
+                              .through(fs2.text.utf8.encode[F])
+                              .through(fs2.io.stdout[F])
+                              .onFinalize(onClose)
                               .compile
                               .drain
+
                         }
                       case None      =>
                         response.headers.headers.appended(Header.Raw("Status".ci, response.status.renderString)).traverse { h =>
