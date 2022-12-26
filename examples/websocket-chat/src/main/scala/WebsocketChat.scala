@@ -15,10 +15,11 @@ import fs2.io.file.{Path => FS2Path}
 import fs2.io.file.Files
 import fs2.io.file.Watcher.Event
 import fs2.io.net.Socket
-import scalanative.unsafe.fromCString
 
+import scalanative.unsafe.fromCString
 import java.io.File
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 import scala.scalanative.unsafe.{CFuncPtr5, CInt, CQuote, CString, Ptr}
 
 object Name {
@@ -53,12 +54,13 @@ object DbConn                                                {
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
-  def registerCallback(cb: String => Unit)(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+  def registerCallback(cb: AtomicInteger)(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     println("registering callback")
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
       println("callback triggered")
-      println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
-      cb(fromCString(table))
+      // println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
+      val counter = cb.incrementAndGet()
+      println(s"counter: $counter")
     }
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),

@@ -4,6 +4,7 @@ import cats.effect.implicits._
 import cats.effect.std.Dispatcher
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 class SQLiteIntegrationTest extends munit.CatsEffectSuite {
 
@@ -17,13 +18,13 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
 
   test("use an sqlite database") {
     Dispatcher[IO].use { implicit dispatcher =>
-      @volatile var changes: Int = 0
+      val counter = new AtomicInteger(0)
       DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), write = true)
         .use { conn =>
-          conn.registerCallback(_ => changes = changes + 1) *>
+          conn.registerCallback(counter) *>
             conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
             conn.exec[Cat, Unit]("insert into cats values (?, ?)")(Cat("bob", 12)) *>
-            conn.exec[Unit, Cat]("select * from cats")() <* IO.println(s"change count: $changes")
+            conn.exec[Unit, Cat]("select * from cats")() <* IO.println(s"change count: ${counter.get()}")
         }
         .assertEquals(
           Vector(Cat("bob", 12))
