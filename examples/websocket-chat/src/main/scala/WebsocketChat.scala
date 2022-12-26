@@ -56,12 +56,9 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
   def registerCallback(cb: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
     println("registering callback")
     def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit = {
+      println("callback triggered")
       println(s"boop: ${op.toInt}, ${fromCString(db)}, ${fromCString(table)}, ${row.toLong}")
-      dispatcher.unsafeRunAndForget(
-        cb("dunno", "dunno", "dunno", 123L)
-      )
     }
-
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       callback(_, _, _, _, _),
