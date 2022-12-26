@@ -3,7 +3,7 @@ import cats.effect._
 import cats.effect.std.Dispatcher
 import cats.implicits._
 import com.github.sqlite4s.bindings.sqlite.SQLITE_CONSTANT.{SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE}
-import com.github.sqlite4s.bindings.sqlite.sqlite3_update_hook
+import com.github.sqlite4s.bindings.sqlite.{sqlite3_int64, sqlite3_update_hook}
 import com.github.sqlite4s.{SQLParts, SQLiteConnection, SQLiteStatement}
 import net.andmiller.http4s.cgi.WebsocketdApp
 import org.http4s.dsl.io._
@@ -18,7 +18,7 @@ import fs2.io.net.Socket
 
 import java.io.File
 import java.time.Instant
-import scala.scalanative.unsafe.{CFuncPtr5, CQuote, CString, Ptr}
+import scala.scalanative.unsafe.{CFuncPtr5, CInt, CQuote, CString, Ptr}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -48,7 +48,9 @@ object Loader   {
 }
 
 object DbConn                                                {
-  val callbackStr: CString = c"callback"
+  val callbackStr: CString                                                                     = c"callback"
+  def callback(id: Ptr[Byte], op: CInt, db: CString, table: CString, row: sqlite3_int64): Unit =
+    println("beep")
 }
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
@@ -56,27 +58,7 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
     println("registering callback")
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
-      CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
-        dispatcher.unsafeRunAndForget(
-          Sync[F].delay {
-            println("beep")
-          }
-          /*
-          callback(
-            op match {
-              case i if i == SQLITE_INSERT => "INSERT"
-              case i if i == SQLITE_UPDATE => "UPDATE"
-              case i if i == SQLITE_DELETE => "DELETE"
-              case _                       => "UNKNOWN"
-            },
-            db.toString(),
-            table.toString(),
-            row.toLong
-          )
-
-           */
-        )
-      },
+      DbConn.callback(_, _, _, _, _),
       DbConn.callbackStr
     )
     println("callback registered")
