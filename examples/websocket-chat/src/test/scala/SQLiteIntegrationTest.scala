@@ -15,16 +15,15 @@ class SQLiteIntegrationTest extends munit.CatsEffectSuite {
     s.bind(1, c.name).bind(2, c.age)
   }
 
-  def printString(s: String): Unit = println(s"other side of the callback: $s")
-
   test("use an sqlite database") {
     Dispatcher[IO].use { implicit dispatcher =>
+      @volatile var changes: Int = 0
       DB.connect[IO](File.createTempFile("sqlite-integration-test", ".db"), write = true)
         .use { conn =>
-          conn.registerCallback(printString) *>
+          conn.registerCallback(_ => changes = changes + 1) *>
             conn.exec[Unit, Unit]("create table if not exists cats ( varchar name primary key, int age)")() *>
             conn.exec[Cat, Unit]("insert into cats values (?, ?)")(Cat("bob", 12)) *>
-            conn.exec[Unit, Cat]("select * from cats")()
+            conn.exec[Unit, Cat]("select * from cats")() <* IO.println(s"change count: $changes")
         }
         .assertEquals(
           Vector(Cat("bob", 12))
