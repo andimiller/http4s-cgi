@@ -117,6 +117,7 @@ lazy val `websocket-chat` = (project in file("examples/websocket-chat"))
       "org.http4s"        %%% "http4s-dsl"    % "1.0.0-M37",
       "io.circe"          %%% "circe-generic" % "0.14.3",
       "io.circe"          %%% "circe-parser"  % "0.14.3",
+      "com.armanbilge"    %%% "epollcat"      % "0.1.2",
       "io.chrisdavenport" %%% "rediculous"    % "0.4.0-15-6f5aacf-SNAPSHOT"
     ),
     resolvers +=
