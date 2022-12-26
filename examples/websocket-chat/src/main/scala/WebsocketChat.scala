@@ -18,7 +18,7 @@ import fs2.io.net.Socket
 
 import java.io.File
 import java.time.Instant
-import scala.scalanative.unsafe.{CFuncPtr5, CQuote, Ptr}
+import scala.scalanative.unsafe.{CFuncPtr5, CQuote, CString, Ptr}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -28,27 +28,32 @@ object Name {
       .filter(_.forall(_.isLetter))
 }
 
-trait Binder[T]                                              {
+trait Binder[T] {
   def apply(s: SQLiteStatement, t: T): SQLiteStatement
 }
-object Binder                                                {
+object Binder   {
   def apply[T: Binder]: Binder[T] = implicitly
 
   // some instances
   implicit val bindUnit: Binder[Unit] = { case (s, _) => s }
 }
-trait Loader[T]                                              {
+trait Loader[T] {
   def apply(s: SQLiteStatement): T
 }
-object Loader                                                {
+object Loader   {
   def apply[T: Loader]: Loader[T] = implicitly
 
   // some instances
   implicit val loadInt: Loader[Unit] = { _ => () }
 }
+
+object DbConn                                                {
+  val callbackStr: CString = c"callback"
+}
 class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
 
   def registerCallback(callback: (String, String, String, Long) => F[Unit])(implicit dispatcher: Dispatcher[F]): F[Unit] = Sync[F].delay {
+    println("registering callback")
     sqlite3_update_hook(
       conn.connectionHandle().asPtr(),
       CFuncPtr5.fromScalaFunction { case (_, op, db, table, row) =>
@@ -66,8 +71,9 @@ class DbConn[F[_]: Sync](private val conn: SQLiteConnection) {
           )
         )
       },
-      c"callback"
+      DbConn.callbackStr
     )
+    println("callback registered")
   }.void
 
   /** Execute an SQL statement, using the Binder to bind inputs, and the Loader to bind outputs */
