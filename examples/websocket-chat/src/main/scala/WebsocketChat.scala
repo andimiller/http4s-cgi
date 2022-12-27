@@ -46,7 +46,7 @@ object WebsocketChat extends WebsocketdApp {
               .flatMap { case (pub, sub) =>
                 EitherT(
                   (fs2.Stream.eval(sub.subscribe("chat", m => topic.offer(m.message)).as(0.seconds)) ++ fs2.Stream.awakeEvery[IO](
-                    1.seconds
+                    0.1.seconds
                   )).map(_.asLeft[String])
                     .mergeHaltBoth(
                       input
@@ -55,7 +55,6 @@ object WebsocketChat extends WebsocketdApp {
                         .evalTap(s => pub.publish("chat", s))
                         .map(_.asRight[FiniteDuration])
                     )
-                    .evalTap(e => IO.println(e.toString))
                 ).leftSemiflatMap(_ =>
                   fs2.Stream
                     .eval(topic.tryTake)
