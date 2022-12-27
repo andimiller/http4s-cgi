@@ -56,7 +56,7 @@ object WebsocketChat extends WebsocketdApp {
                   .collect { case WebSocketFrame.Text(s, _) => s }
                   .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
                   .evalTap(s => pub.publish("chat", s))
-                out.concurrently(in)
+                out.concurrently(in).concurrently(fs2.Stream.eval(sub.runMessages))
               }
           }
         }
