@@ -34,30 +34,27 @@ object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
-        Topic[IO, String].flatMap { topic =>
-          ws.build { input =>
-            fs2.Stream
-              .resource(
-                RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
-              )
-              .flatMap { pubsub =>
-                val out = (fs2.Stream.eval(
-                  pubsub
-                    .subscribe(
-                      "chat",
-                      m => {
-                        topic.publish1(m.message).void
-                      }
-                    )
-                    .as("Connected")
-                ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-                val in  = input
-                  .collect { case WebSocketFrame.Text(s, _) => s }
-                  .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
-                  .evalTap(s => pubsub.publish("chat", s))
-                out.concurrently(in)
-              }
-          }
+        ws.build { input =>
+          fs2.Stream
+            .resource(
+              RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
+            )
+            .flatMap { pubsub =>
+              (fs2.Stream.eval(
+                pubsub
+                  .subscribe(
+                    "chat",
+                    m => {
+                      IO.println(m.message)
+                    }
+                  )
+                  .as(WebSocketFrame.Text("Connected"))
+              ) ++ input
+                .collect { case WebSocketFrame.Text(s, _) => s }
+                .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
+                .evalTap(s => pubsub.publish("chat", s))
+                .map(s => WebSocketFrame.Text(s)))
+            }
         }
       }
       .orNotFound
