@@ -1,6 +1,6 @@
 import cats.effect.kernel.Resource
 import cats.effect._
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, Queue}
 import cats.implicits._
 import fs2.concurrent.Topic
 import io.chrisdavenport.rediculous.{RedisCommands, RedisConnection, RedisPubSub}
@@ -14,6 +14,7 @@ import org.http4s.server.websocket.WebSocketBuilder
 import org.http4s.websocket.WebSocketFrame
 
 import java.time.Instant
+import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -34,29 +35,29 @@ object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
-        Topic[IO, String].flatMap { topic =>
-          val pubsub = fs2.Stream
-            .resource(
-              RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
-            )
-          ws.build { input =>
+        val pubsub = fs2.Stream
+          .resource(
+            RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
+          )
+        ws.build { input =>
+          fs2.Stream.eval(Queue.unbounded[IO, String]).flatMap { topic =>
             (pubsub, pubsub).tupled
               .flatMap { case (pub, sub) =>
-                val out = (fs2.Stream.eval(
+                val out: fs2.Stream[IO, WebSocketFrame.Text] = (fs2.Stream.eval(
                   sub
                     .subscribe(
                       "chat",
                       m => {
-                        topic.publish1(m.message).void
+                        topic.offer(m.message).void
                       }
                     )
                     .as("Connected")
-                ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-                val in  = input
+                ) ++ fs2.Stream.awakeEvery[IO](1.seconds).evalMap(_ => topic.tryTake).flattenOption).map(s => WebSocketFrame.Text(s))
+                val in                                       = input
                   .collect { case WebSocketFrame.Text(s, _) => s }
                   .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
                   .evalTap(s => pub.publish("chat", s))
-                out.concurrently(in).concurrently(fs2.Stream.eval(sub.runMessages))
+                out.concurrently(in).concurrently(fs2.Stream.eval(sub.runMessages *> IO.cede *> IO.sleep(0.1.seconds)).repeat)
               }
           }
         }
