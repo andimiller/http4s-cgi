@@ -41,16 +41,21 @@ object WebsocketChat extends WebsocketdApp {
                 RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
               )
               .flatMap { pubsub =>
-                input
+                val out = (fs2.Stream.eval(
+                  pubsub
+                    .subscribe(
+                      "chat",
+                      m => {
+                        topic.publish1(m.message).void
+                      }
+                    )
+                    .as("Connected")
+                ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
+                val in  = input
                   .collect { case WebSocketFrame.Text(s, _) => s }
                   .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
                   .evalTap(s => pubsub.publish("chat", s))
-                  .map(s => WebSocketFrame.Text(s))
-                  .mergeHaltBoth(
-                    (fs2.Stream.eval(
-                      pubsub.subscribe("chat", m => { topic.publish1(m.message).void }).as("Connected")
-                    ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-                  )
+                out.concurrently(in)
               }
           }
         }
