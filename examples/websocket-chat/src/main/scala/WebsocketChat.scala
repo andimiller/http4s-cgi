@@ -51,13 +51,18 @@ object WebsocketChat extends WebsocketdApp {
                         topic.offer(m.message).void
                       }
                     )
+                    .flatTap(_ => IO.println("subscribed"))
                     .as("Connected")
-                ) ++ fs2.Stream.awakeEvery[IO](1.seconds).evalMap(_ => topic.tryTake).flattenOption).map(s => WebSocketFrame.Text(s))
+                ) ++ fs2.Stream.awakeEvery[IO](1.seconds).evalTap(_ => IO.println("tick")).evalMap(_ => topic.tryTake).flattenOption)
+                  .map(s => WebSocketFrame.Text(s))
                 val in                                       = input
+                  .evalTap(_ => IO.println("input tick"))
                   .collect { case WebSocketFrame.Text(s, _) => s }
                   .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
                   .evalTap(s => pub.publish("chat", s))
-                out.concurrently(in).concurrently(fs2.Stream.eval(sub.runMessages *> IO.cede *> IO.sleep(0.1.seconds)).repeat)
+                out
+                  .concurrently(in)
+                  .concurrently(fs2.Stream.eval(IO.println("run tick") *> sub.runMessages *> IO.cede *> IO.sleep(0.1.seconds)).repeat)
               }
           }
         }
