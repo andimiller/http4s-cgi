@@ -35,37 +35,25 @@ object WebsocketChat extends WebsocketdApp {
     HttpRoutes
       .of[IO] { case Name(name) =>
         Topic[IO, String].flatMap { topic =>
-          ws.build(
+          ws.build { input =>
             fs2.Stream
               .resource(
                 RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
               )
               .flatMap { pubsub =>
-                (fs2.Stream.eval(
-                  pubsub
-                    .subscribe(
-                      "chat",
-                      { m =>
-                        topic.publish1(m.message).void
-                      }
-                    )
-                    .as("Connected")
-                ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-              },
-            input =>
-              fs2.Stream
-                .resource(
-                  RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
-                )
-                .flatMap { pubsub =>
-                  input
-                    .collect { case WebSocketFrame.Text(s, _) => s }
-                    .evalTap(s => pubsub.publish("chat", ChatLog(Instant.now(), name, s).asJson.noSpaces))
-                    .void
-                }
-          )
+                input
+                  .collect { case WebSocketFrame.Text(s, _) => s }
+                  .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
+                  .evalTap(s => pubsub.publish("chat", s))
+                  .map(s => WebSocketFrame.Text(s))
+                  .mergeHaltBoth(
+                    (fs2.Stream.eval(
+                      pubsub.subscribe("chat", m => { topic.publish1(m.message).void }).as("Connected")
+                    ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
+                  )
+              }
+          }
         }
-
       }
       .orNotFound
 }

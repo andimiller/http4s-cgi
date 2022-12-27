@@ -58,7 +58,7 @@ object WebsocketdServerBuilder {
                               .flattenOption
                               .map(escapeNewlines)
                               .evalMap(s => Console[F].println(s))
-                            in.concurrently(out).onFinalize(onClose).compile.drain
+                            out.concurrently(in).onFinalize(onClose).compile.drain
                           case WebSocketCombinedPipe(receiveSend, onClose)   =>
                             fs2.io
                               .stdinUtf8[F](1024)
