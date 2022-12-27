@@ -1,6 +1,7 @@
+import cats.data.EitherT
 import cats.effect.kernel.Resource
 import cats.effect._
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, Queue}
 import cats.implicits._
 import fs2.concurrent.Topic
 import io.chrisdavenport.rediculous.{RedisCommands, RedisConnection, RedisPubSub}
@@ -14,6 +15,7 @@ import org.http4s.server.websocket.WebSocketBuilder
 import org.http4s.websocket.WebSocketFrame
 
 import java.time.Instant
+import scala.concurrent.duration.{DurationDouble, FiniteDuration}
 
 object Name {
   def unapply[F[_]](req: Request[F]): Option[String] =
@@ -34,7 +36,7 @@ object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
-        Topic[IO, String].flatMap { topic =>
+        Queue.unbounded[IO, String].flatMap { topic =>
           val pubsub = fs2.Stream
             .resource(
               RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
@@ -42,21 +44,26 @@ object WebsocketChat extends WebsocketdApp {
           ws.build { input =>
             (pubsub, pubsub).tupled
               .flatMap { case (pub, sub) =>
-                val out = (fs2.Stream.eval(
-                  sub
-                    .subscribe(
-                      "chat",
-                      m => {
-                        topic.publish1(m.message).void
-                      }
+                EitherT(
+                  (fs2.Stream.eval(sub.subscribe("chat", m => topic.offer(m.message)).as(0.seconds)) ++ fs2.Stream.awakeEvery[IO](
+                    0.1.seconds
+                  )).map(_.asLeft[String])
+                    .mergeHaltBoth(
+                      input
+                        .collect { case WebSocketFrame.Text(s, _) => s }
+                        .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
+                        .evalTap(s => pub.publish("chat", s))
+                        .map(_.asRight[FiniteDuration])
                     )
-                    .as("Connected")
-                ) ++ topic.subscribe(1000)).map(s => WebSocketFrame.Text(s))
-                val in  = input
-                  .collect { case WebSocketFrame.Text(s, _) => s }
-                  .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
-                  .evalTap(s => pub.publish("chat", s))
-                out.concurrently(in)
+                ).leftSemiflatMap(_ =>
+                  fs2.Stream
+                    .eval(topic.tryTake)
+                    .flattenOption
+                    .evalMap { s => IO.fromEither(io.circe.parser.parse(s).flatMap(_.as[ChatLog])) }
+                    .map(_.asJson.noSpaces)
+                ).value
+                  .map(_.merge)
+                  .map(WebSocketFrame.Text(_))
               }
           }
         }
