@@ -35,14 +35,15 @@ object WebsocketChat extends WebsocketdApp {
     HttpRoutes
       .of[IO] { case Name(name) =>
         Topic[IO, String].flatMap { topic =>
+          val pubsub = fs2.Stream
+            .resource(
+              RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
+            )
           ws.build { input =>
-            fs2.Stream
-              .resource(
-                RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
-              )
-              .flatMap { pubsub =>
+            (pubsub, pubsub).tupled
+              .flatMap { case (pub, sub) =>
                 val out = (fs2.Stream.eval(
-                  pubsub
+                  sub
                     .subscribe(
                       "chat",
                       m => {
@@ -54,7 +55,7 @@ object WebsocketChat extends WebsocketdApp {
                 val in  = input
                   .collect { case WebSocketFrame.Text(s, _) => s }
                   .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
-                  .evalTap(s => pubsub.publish("chat", s))
+                  .evalTap(s => pub.publish("chat", s))
                 out.concurrently(in)
               }
           }
