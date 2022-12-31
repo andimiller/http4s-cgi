@@ -35,37 +35,35 @@ object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws =>
     HttpRoutes
       .of[IO] { case Name(name) =>
-        val pubsub = fs2.Stream
-          .resource(
-            RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
-          )
-        ws.build { input =>
-          fs2.Stream.eval(Queue.unbounded[IO, String]).flatMap { topic =>
-            (pubsub, pubsub).tupled
-              .flatMap { case (pub, sub) =>
-                val out: fs2.Stream[IO, WebSocketFrame.Text] = (fs2.Stream.eval(
-                  sub
-                    .subscribe(
-                      "chat",
-                      m => {
-                        topic.offer(m.message).void
-                      }
-                    )
-                    .flatTap(_ => IO.println("subscribed"))
-                    .as("Connected")
-                ) ++ fs2.Stream.awakeEvery[IO](1.seconds).evalTap(_ => IO.println("tick")).evalMap(_ => topic.tryTake).flattenOption)
-                  .map(s => WebSocketFrame.Text(s))
-                val in                                       = input
-                  .evalTap(_ => IO.println("input tick"))
-                  .collect { case WebSocketFrame.Text(s, _) => s }
-                  .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
-                  .evalTap(s => pub.publish("chat", s))
-                out
-                  .concurrently(in)
-                  .concurrently(fs2.Stream.eval(IO.println("run tick") *> sub.runMessages *> IO.cede *> IO.sleep(0.1.seconds)).repeat)
-              }
-          }
+        val pubsub =
+          RedisConnection.direct[IO].build.flatMap(RedisPubSub.fromConnection(_))
+        (pubsub, pubsub, Resource.eval(Queue.unbounded[IO, String])).tupled.use { case (pub, sub, topic) =>
+          (
+            ws.build { input =>
+              val out: fs2.Stream[IO, WebSocketFrame.Text] = (fs2.Stream.eval(
+                sub
+                  .subscribe(
+                    "chat",
+                    m => {
+                      topic.offer(m.message).void
+                    }
+                  )
+                  .flatTap(_ => IO.println("subscribed"))
+                  .as("Connected")
+              ) ++ fs2.Stream.awakeEvery[IO](1.seconds).evalTap(_ => IO.println("tick")).evalMap(_ => topic.tryTake).flattenOption)
+                .map(s => WebSocketFrame.Text(s))
+              val in                                       = input
+                .evalTap(_ => IO.println("input tick"))
+                .collect { case WebSocketFrame.Text(s, _) => s }
+                .map(s => ChatLog(Instant.now(), name, s).asJson.noSpaces)
+                .evalTap(s => pub.publish("chat", s))
+              out
+                .concurrently(in)
+            },
+            sub.runMessages
+          ).parMapN { case (resp, _) => resp }
         }
+
       }
       .orNotFound
 }
