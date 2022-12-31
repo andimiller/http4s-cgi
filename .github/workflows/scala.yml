@@ -32,7 +32,7 @@ jobs:
     needs: [build]
     strategy:
       matrix:
-        module: [hello,calculator,hitcounter,httpbin,streamed]
+        module: [hello,calculator,hitcounter,httpbin,streamed,websocket,websocket-chat]
     steps:
     - uses: actions/checkout@v3
     - name: Set up JDK 11
@@ -40,9 +40,11 @@ jobs:
       with:
         java-version: '11'
         distribution: 'temurin'
-        cache: 'sbt'    
+        cache: 'sbt'
+    - name: Install sqlite3-dev
+      run: sudo apt-get install -y libsqlite3-dev
     - name: build ${{ matrix.module }}
-      run: sbt -mem 4096 "project ${{ matrix.module }}; nativeLink"
+      run: sbt -mem 4096 "project ${{ matrix.module }}; test; nativeLink"
     - name: upload target
       uses: actions/upload-artifact@v2
       with: 

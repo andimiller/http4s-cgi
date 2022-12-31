@@ -15,15 +15,23 @@ lazy val commonSettings = List(
       .withLTO(LTO.default)
       .withGC(GC.default)
   },
-  nativeLinkingOptions += "-static"
+  nativeLinkingOptions += "-static",
+  libraryDependencies ++= List(
+    "org.typelevel" %%% "munit-cats-effect" % "2.0.0-M3" % Test
+  ),
+  testFrameworks += new TestFramework("munit.Framework"),
+  resolvers +=
+    "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots" // for the snapshot of fs2
 )
 
 lazy val root = (project in file("."))
+  .settings(commonSettings: _*)
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name := "http4s-cgi",
     libraryDependencies ++= List(
-      "org.http4s" %%% "http4s-server" % "1.0.0-M37"
+      "org.http4s" %%% "http4s-server" % "1.0.0-M37",
+      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
     )
   )
 
@@ -86,8 +94,38 @@ lazy val hitcounter = (project in file("examples/hitcounter"))
       "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
       "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
       "io.circe"   %%% "circe-generic" % "0.14.3",
-      "co.fs2"     %%% "fs2-io"        % "3.4.0"
+      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
     )
   )
 
-lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator)
+lazy val websocket = (project in file("examples/websocket"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "websocket",
+    libraryDependencies ++= List(
+      "org.http4s" %%% "http4s-circe" % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"   % "1.0.0-M37"
+    )
+  )
+
+lazy val `websocket-chat` = (project in file("examples/websocket-chat"))
+  .enablePlugins(ScalaNativePlugin)
+  .dependsOn(root)
+  .settings(commonSettings: _*)
+  .settings(
+    name := "websocket-chat",
+    libraryDependencies ++= List(
+      "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
+      "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
+      "io.circe"   %%% "circe-generic" % "0.14.3",
+      "io.circe"   %%% "circe-parser"  % "0.14.3",
+      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
+// "io.chrisdavenport" %%% "rediculous"    % "0.4.0-15-6f5aacf-SNAPSHOT"
+    ),
+    resolvers +=
+      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots" // for the snapshot of rediculous
+  )
+
+lazy val examples = (project in file("examples")).aggregate(hello, streamed, httpbin, calculator, hitcounter, websocket, `websocket-chat`)
