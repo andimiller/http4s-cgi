@@ -1,7 +1,7 @@
 package org.http4s.websocketd
 
 import cats.data.OptionT
-import cats.effect.{Async, Concurrent, GenConcurrent, Sync, Unique}
+import cats.effect.{Async, Concurrent, GenConcurrent, LiftIO, Sync, Unique}
 import cats.effect.std.Console
 import cats.implicits._
 import net.andmiller.http4s.cgi.CgiServerBuilder
@@ -19,7 +19,7 @@ object WebsocketdServerBuilder {
   def escapeNewlines(s: String): String   = s.replace("\n", "\\n")
   def unescapeNewlines(s: String): String = s.replace("\\n", "\n")
 
-  def run[F[_]: Async: Console](create: WebSocketBuilder[F] => HttpApp[F]): F[Unit] = for {
+  def run[F[_]: Async: LiftIO: Console](create: WebSocketBuilder[F] => HttpApp[F]): F[Unit] = for {
     env          <- Sync[F].delay { System.getenv().asScala.toMap }
     method       <- env.getOrRaise[F]("REQUEST_METHOD").flatMap(s => Sync[F].fromEither(Method.fromString(s)))
     queryString   = env.get("QUERY_STRING").map(s => "?" + s)

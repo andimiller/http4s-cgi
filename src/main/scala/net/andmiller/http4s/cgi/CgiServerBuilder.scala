@@ -1,7 +1,7 @@
 package net.andmiller.http4s.cgi
 
 import cats.data.OptionT
-import cats.effect.Sync
+import cats.effect.{Async, LiftIO, Sync}
 import cats.effect.std.Console
 import cats.implicits._
 import org.http4s.headers.`Content-Type`
@@ -20,7 +20,7 @@ object CgiServerBuilder {
     })
   }
 
-  def run[F[_]: Sync: Console](routes: HttpApp[F]): F[Unit] = for {
+  def run[F[_]: Async: Console: LiftIO](routes: HttpApp[F]): F[Unit] = for {
     env          <- Sync[F].delay { System.getenv().asScala.toMap }
     method       <- env.getOrRaise[F]("REQUEST_METHOD").flatMap(s => Sync[F].fromEither(Method.fromString(s)))
     queryString   = env.get("QUERY_STRING").map(s => "?" + s)
