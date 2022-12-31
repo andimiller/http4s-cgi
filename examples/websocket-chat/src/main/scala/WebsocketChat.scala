@@ -25,7 +25,7 @@ object ChatLog {
   implicit val codec: Codec[ChatLog] = deriveCodec
 }
 
-/** This is an example websocket server which lets people join and chat to each other via redis
+/** This is an example websocket server which lets people join and chat to each other via unix sockets
   */
 object WebsocketChat extends WebsocketdApp {
   override def create: WebSocketBuilder[IO] => HttpApp[IO] = ws => {
