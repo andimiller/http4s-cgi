@@ -49,7 +49,7 @@ object WebsocketChat extends WebsocketdApp {
                 .drain
             }
           val out = UnixSockets[IO]
-            .server(UnixSocketAddress(s"/chatsockets/$name.chat.sock"), deleteIfExists = true, deleteOnClose = true)
+            .server(UnixSocketAddress(s"./chatsockets/$name.chat.sock"), deleteIfExists = true, deleteOnClose = true)
             .flatMap { sock =>
               sock.reads
                 .through(fs2.text.utf8.decode[IO])
@@ -61,7 +61,7 @@ object WebsocketChat extends WebsocketdApp {
                   )
                 }
             }
-            .onFinalize(Files[IO].delete(FPath(s"/chatsockets/$name.chat.sock")))
+            .onFinalize(Files[IO].delete(FPath(s"./chatsockets/$name.chat.sock")))
           out.concurrently(in)
         }
       }
