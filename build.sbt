@@ -19,16 +19,19 @@ lazy val commonSettings = List(
   libraryDependencies ++= List(
     "org.typelevel" %%% "munit-cats-effect" % "2.0.0-M3" % Test
   ),
-  testFrameworks += new TestFramework("munit.Framework")
+  testFrameworks += new TestFramework("munit.Framework"),
+  resolvers +=
+    "Sonatype OSS Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots" // for the snapshot of fs2
 )
 
 lazy val root = (project in file("."))
+  .settings(commonSettings: _*)
   .enablePlugins(ScalaNativePlugin)
   .settings(
     name := "http4s-cgi",
     libraryDependencies ++= List(
-      "org.http4s"     %%% "http4s-server" % "1.0.0-M37",
-      "com.armanbilge" %%% "epollcat"      % "0.1.2"
+      "org.http4s" %%% "http4s-server" % "1.0.0-M37",
+      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
     )
   )
 
@@ -91,7 +94,7 @@ lazy val hitcounter = (project in file("examples/hitcounter"))
       "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
       "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
       "io.circe"   %%% "circe-generic" % "0.14.3",
-      "co.fs2"     %%% "fs2-io"        % "3.4.0"
+      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
     )
   )
 
