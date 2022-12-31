@@ -49,7 +49,7 @@ object WebsocketChat extends WebsocketdApp {
                     .use { sock =>
                       fs2.Stream.emit(msg).through(fs2.text.utf8.encode[IO]).through(sock.writes).compile.drain
                     }
-                    .attempt // sometimes there's a stale socket and we'd like to just pretend everything's okay in this demo
+                    .attempt // currently finalizers don't work on cats-effect on native, so there may be stale sockets
                     .void
                 }
                 .compile
@@ -72,7 +72,6 @@ object WebsocketChat extends WebsocketdApp {
                   )
                 }
             }
-            .onFinalize(Files[IO].delete(FPath(s"./chatsockets/$name.chat.sock"))) // delete our socket if we left it by accident
           out.concurrently(in)
         }
       }
