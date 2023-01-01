@@ -91,10 +91,11 @@ lazy val hitcounter = (project in file("examples/hitcounter"))
   .settings(
     name := "hitcounter",
     libraryDependencies ++= List(
-      "org.http4s" %%% "http4s-circe"  % "1.0.0-M37",
-      "org.http4s" %%% "http4s-dsl"    % "1.0.0-M37",
-      "io.circe"   %%% "circe-generic" % "0.14.3",
-      "co.fs2"     %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT"
+      "org.http4s"             %%% "http4s-circe"  % "1.0.0-M37",
+      "org.http4s"             %%% "http4s-dsl"    % "1.0.0-M37",
+      "io.circe"               %%% "circe-generic" % "0.14.3",
+      "co.fs2"                 %%% "fs2-io"        % "3.5-b0f71fe-SNAPSHOT",
+      "org.scala-lang.modules" %%% "scala-xml"     % "2.1.0"
     )
   )
 
