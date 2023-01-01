@@ -10,6 +10,7 @@ import org.http4s.{HttpApp, HttpRoutes}
 import fs2.io.file.{FileHandle, Files, Flag, Flags, ReadCursor, WriteCursor, Path => FPath}
 import fs2.Stream
 import io.circe.jawn.CirceSupportParser.facade
+import org.http4s.server.middleware.CORS
 import org.typelevel.jawn.fs2._
 
 import java.nio.file.{Path, Paths}
@@ -47,9 +48,11 @@ object Counter {
 
 object HitCounter extends CgiApp {
 
-  override val routes: HttpApp[IO] = HttpRoutes
-    .of[IO] { case req =>
-      Counter.incrementAndGet[IO](Paths.get("hits.json")).flatMap { hits => Ok(hits.asJson) }
-    }
-    .orNotFound
+  override val routes: HttpApp[IO] = CORS.policy.withAllowOriginAll(
+    HttpRoutes
+      .of[IO] { case req =>
+        Counter.incrementAndGet[IO](Paths.get("hits.json")).flatMap { hits => Ok(hits.asJson) }
+      }
+      .orNotFound
+  )
 }
