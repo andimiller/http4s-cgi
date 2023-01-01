@@ -52,7 +52,7 @@ object Counter {
 object HitCounter extends CgiApp {
   private def template(count: Long): Elem = <svg viewbox="0 0 120 24" xmlns="http://www.w3.org/2000/svg">
     <text x="0" y="24" fill="rgb(255, 255, 255)" font-family="monospace" font-size="24px">
-      count
+      {count}
     </text>
   </svg>
 
